@@ -1,0 +1,5 @@
+
+flask
+pytube
+opencv-python
+pytesseract

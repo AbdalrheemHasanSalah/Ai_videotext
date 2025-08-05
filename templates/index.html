@@ -1,0 +1,39 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>YouTube OCR</title>
+</head>
+<body>
+    <h1>YouTube Video Text Extractor (OCR)</h1>
+    <input type="text" id="url" placeholder="Enter YouTube URL" style="width:300px">
+    <button onclick="extractText()">Extract Text</button>
+    <pre id="result">Extracted text will appear here...</pre>
+
+    <script>
+        async function extractText() {
+            
+            const url = document.getElementById('url').value;
+            console.log("✅ Sent URL:", url);
+            console.log("✅ Request body:", JSON.stringify({ url: url }));
+            if (!url) {
+                document.getElementById('result').textContent = "❌ Please enter a YouTube URL.";
+                return;
+            }
+            const response = await fetch('/extract-text', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ url: url })
+            });
+            const data = await response.json();
+            if (data.error) {
+                document.getElementById('result').textContent = "❌ Error: " + data.error;
+            } else {
+                document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+            }
+        }
+    </script>
+</body>
+</html>
