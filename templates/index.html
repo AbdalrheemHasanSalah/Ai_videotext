@@ -241,6 +241,22 @@
             font-weight: 600;
         }
 
+        .countdown-timer {
+            background: linear-gradient(135deg, #4caf50, #45a049);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+        }
+
+        .countdown-timer i {
+            margin-right: 8px;
+        }
+
         .disclaimer {
             font-size: 0.9rem;
             color: #666;
@@ -371,6 +387,10 @@
                 <div class="loading-text">
                     <i class="fas fa-cog fa-spin"></i> Processing your video...
                 </div>
+                <div id="countdown" class="countdown-timer">
+                    <i class="fas fa-clock"></i>
+                    <span id="countdown-text">Calculating time remaining...</span>
+                </div>
                 <p>This may take a few minutes depending on video length</p>
             </div>
 
@@ -428,6 +448,9 @@
                 return;
             }
 
+            // First, update processing estimates and get total time
+            const videoInfo = await updateProcessingEstimates(url);
+
             // Show loading state with smooth animations
             button.disabled = true;
             buttonText.textContent = "Processing...";
@@ -435,6 +458,14 @@
             progress.classList.add('show');
             result.textContent = "⏳ Starting processing...";
             result.className = "";
+
+            // Start countdown timer if we have estimated time
+            if (videoInfo && videoInfo.processing_times) {
+                startCountdown(videoInfo.processing_times.total);
+            } else {
+                // Default fallback time
+                startCountdown(300); // 5 minutes default
+            }
 
             try {
                 const response = await fetch('/extract-text', {
@@ -489,6 +520,9 @@
                 result.textContent = "❌ Network error: " + error.message;
                 result.className = "error-state";
             } finally {
+                // Stop countdown timer
+                stopCountdown();
+                
                 // Reset button state with smooth animations
                 setTimeout(() => {
                     button.disabled = false;
@@ -506,9 +540,110 @@
             }
         });
 
-        // Add input validation and formatting
-        document.getElementById('url').addEventListener('input', function(e) {
-            const url = e.target.value;
+        // Function to format time in minutes and seconds
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            if (mins > 0) {
+                return `${mins}m ${secs}s`;
+            }
+            return `${secs}s`;
+        }
+
+        // Function to update processing time estimates
+        async function updateProcessingEstimates(url) {
+            const progress = document.getElementById('progress');
+            
+            try {
+                const response = await fetch('/get-video-info', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ url: url })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    console.log("Could not get video info:", data.error);
+                    return null;
+                }
+                
+                const times = data.processing_times;
+                
+                // Update the progress estimates
+                const progressSteps = progress.querySelectorAll('.progress-step span');
+                if (progressSteps.length >= 3) {
+                    progressSteps[0].textContent = `Video Download: ~${formatTime(times.download)}`;
+                    progressSteps[1].textContent = `Frame Extraction: ~${formatTime(times.frames)} (${times.estimated_frames} frames)`;
+                    progressSteps[2].textContent = `OCR Processing: ~${formatTime(times.ocr)}`;
+                }
+                
+                // Update total time
+                const totalTimeElement = progress.querySelector('.total-time');
+                if (totalTimeElement) {
+                    totalTimeElement.innerHTML = `
+                        <i class="fas fa-stopwatch"></i> 
+                        Total Expected Time: ${formatTime(times.total)} 
+                        <small>(Video Duration: ${data.duration_formatted})</small>
+                    `;
+                }
+                
+                return data; // Return the data so it can be used by the countdown
+                
+            } catch (error) {
+                console.log("Error fetching video info:", error);
+                return null;
+            }
+        }
+
+        // Countdown timer variables
+        let countdownInterval = null;
+        let estimatedTotalTime = 0;
+
+        // Function to start countdown timer
+        function startCountdown(totalSeconds) {
+            const countdownElement = document.getElementById('countdown-text');
+            estimatedTotalTime = totalSeconds;
+            let remainingTime = totalSeconds;
+
+            // Clear any existing countdown
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+            }
+
+            countdownInterval = setInterval(() => {
+                if (remainingTime <= 0) {
+                    countdownElement.textContent = "Almost done...";
+                    clearInterval(countdownInterval);
+                    return;
+                }
+
+                const minutes = Math.floor(remainingTime / 60);
+                const seconds = remainingTime % 60;
+                
+                if (minutes > 0) {
+                    countdownElement.textContent = `Time remaining: ${minutes}m ${seconds}s`;
+                } else {
+                    countdownElement.textContent = `Time remaining: ${seconds}s`;
+                }
+
+                remainingTime--;
+            }, 1000);
+        }
+
+        // Function to stop countdown timer
+        function stopCountdown() {
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+        }
+
+        // Add input validation and formatting with dynamic estimates
+        document.getElementById('url').addEventListener('input', async function(e) {
+            const url = e.target.value.trim();
             const result = document.getElementById('result');
             
             if (url && !url.includes('youtube.com') && !url.includes('youtu.be')) {
@@ -517,6 +652,15 @@
             } else if (!url) {
                 result.textContent = "Ready to extract text from your YouTube video...";
                 result.className = "empty-state";
+            } else if (url.includes('youtube.com') || url.includes('youtu.be')) {
+                result.textContent = "🔍 Analyzing video to calculate processing time...";
+                result.className = "";
+                
+                // Debounce the API call
+                clearTimeout(this.debounceTimer);
+                this.debounceTimer = setTimeout(() => {
+                    updateProcessingEstimates(url);
+                }, 1000);
             }
         });
     </script>
