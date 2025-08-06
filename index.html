@@ -1,0 +1,668 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube OCR - Text Extractor</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            animation: slideUp 0.6s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            padding: 40px 30px;
+            text-align: center;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+
+        .main-content {
+            padding: 40px 30px;
+        }
+
+        .input-section {
+            background: #f8f9ff;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 1px solid #e1e5ff;
+        }
+
+        .input-group {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-wrapper i {
+            position: absolute;
+            left: 15px;
+            color: #a0aec0;
+            z-index: 2;
+        }
+
+        #url {
+            width: 100%;
+            padding: 15px 15px 15px 45px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        #url:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 180px;
+            justify-content: center;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:disabled {
+            background: linear-gradient(135deg, #a0aec0, #718096);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .loading-section {
+            display: none;
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .loading-section.show {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .loading-text {
+            color: #d68910;
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #d68910;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .progress-info {
+            display: none;
+            background: linear-gradient(135deg, #e3f2fd, #f8f9fa);
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px 0;
+            border-left: 4px solid #2196f3;
+        }
+
+        .progress-info.show {
+            display: block;
+            animation: slideDown 0.4s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .progress-title {
+            font-weight: 700;
+            color: #1565c0;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        .progress-step {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+            color: #37474f;
+        }
+
+        .progress-step i {
+            margin-right: 10px;
+            width: 20px;
+        }
+
+        .total-time {
+            background: #1565c0;
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .countdown-timer {
+            background: linear-gradient(135deg, #4caf50, #45a049);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+        }
+
+        .countdown-timer i {
+            margin-right: 8px;
+        }
+
+        .disclaimer {
+            font-size: 0.9rem;
+            color: #666;
+            text-align: center;
+            margin-top: 10px;
+            font-style: italic;
+        }
+
+        .result-section {
+            background: #f7fafc;
+            border-radius: 15px;
+            padding: 30px;
+            border: 1px solid #e2e8f0;
+            min-height: 200px;
+        }
+
+        .result-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #result {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 25px;
+            white-space: pre-wrap;
+            max-height: 500px;
+            overflow-y: auto;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: #2d3748;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+        }
+
+        .empty-state {
+            text-align: center;
+            color: #a0aec0;
+            font-style: italic;
+        }
+
+        .success-state {
+            color: #38a169;
+        }
+
+        .error-state {
+            color: #e53e3e;
+            background: #fed7d7;
+            border-color: #feb2b2;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                border-radius: 15px;
+            }
+
+            .header {
+                padding: 30px 20px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .main-content {
+                padding: 30px 20px;
+            }
+
+            .input-section {
+                padding: 20px;
+            }
+
+            .btn-primary {
+                width: 100%;
+                padding: 18px;
+            }
+        }
+
+        .fade-in {
+            animation: fadeInUp 0.6s ease;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-video"></i> YouTube OCR</h1>
+            <p>Extract text from YouTube videos using advanced OCR technology</p>
+        </div>
+
+        <div class="main-content">
+            <div class="input-section fade-in">
+                <div class="input-group">
+                    <label for="url">YouTube Video URL</label>
+                    <div class="input-wrapper">
+                        <i class="fab fa-youtube"></i>
+                        <input type="text" id="url" placeholder="https://www.youtube.com/watch?v=..." autocomplete="off">
+                    </div>
+                </div>
+                <button id="extractBtn" class="btn-primary" onclick="extractText()">
+                    <i class="fas fa-magic"></i>
+                    <span>Extract Text</span>
+                </button>
+            </div>
+
+            <div id="loading" class="loading-section">
+                <div class="spinner"></div>
+                <div class="loading-text">
+                    <i class="fas fa-cog fa-spin"></i> Processing your video...
+                </div>
+                <div id="countdown" class="countdown-timer">
+                    <i class="fas fa-clock"></i>
+                    <span id="countdown-text">Calculating time remaining...</span>
+                </div>
+                <p>This may take a few minutes depending on video length</p>
+            </div>
+
+            <div id="progress" class="progress-info">
+                <div class="progress-title">
+                    <i class="fas fa-clock"></i> Estimated Processing Time
+                </div>
+                <div class="progress-step">
+                    <i class="fas fa-download" style="color: #2196f3;"></i>
+                    <span>Video Download: ~30-60 seconds</span>
+                </div>
+                <div class="progress-step">
+                    <i class="fas fa-film" style="color: #ff9800;"></i>
+                    <span>Frame Extraction: ~1-2 minutes</span>
+                </div>
+                <div class="progress-step">
+                    <i class="fas fa-eye" style="color: #4caf50;"></i>
+                    <span>OCR Processing: ~3-5 minutes</span>
+                </div>
+                <div class="total-time">
+                    <i class="fas fa-stopwatch"></i> Total Expected Time: 4-8 minutes
+                </div>
+                <div class="disclaimer">
+                    Processing time depends on video length and text complexity
+                </div>
+            </div>
+
+            <div class="result-section fade-in">
+                <div class="result-title">
+                    <i class="fas fa-file-text"></i>
+                    Extracted Text Results
+                </div>
+                <div id="result" class="empty-state">
+                    Ready to extract text from your YouTube video...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function extractText() {
+            const url = document.getElementById('url').value.trim();
+            const button = document.getElementById('extractBtn');
+            const buttonText = button.querySelector('span');
+            const loading = document.getElementById('loading');
+            const progress = document.getElementById('progress');
+            const result = document.getElementById('result');
+            
+            console.log("✅ Sent URL:", url);
+            console.log("✅ Request body:", JSON.stringify({ url: url }));
+            
+            if (!url) {
+                result.textContent = "❌ Please enter a YouTube URL.";
+                result.className = "error-state";
+                return;
+            }
+
+            // First, update processing estimates and get total time
+            const videoInfo = await updateProcessingEstimates(url);
+
+            // Show loading state with smooth animations
+            button.disabled = true;
+            buttonText.textContent = "Processing...";
+            loading.classList.add('show');
+            progress.classList.add('show');
+            result.textContent = "⏳ Starting processing...";
+            result.className = "";
+
+            // Start countdown timer if we have estimated time
+            if (videoInfo && videoInfo.processing_times) {
+                startCountdown(videoInfo.processing_times.total);
+            } else {
+                // Default fallback time
+                startCountdown(300); // 5 minutes default
+            }
+
+            try {
+                const response = await fetch('/extract-text', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ url: url })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    result.textContent = "❌ Error: " + data.error;
+                    result.className = "error-state";
+                } else {
+                    // Format the results in a beautiful way
+                    if (Object.keys(data).length === 0) {
+                        result.textContent = "ℹ️ No text found in the video frames.";
+                        result.className = "";
+                    } else {
+                        let formattedText = "🎉 TEXT EXTRACTION SUCCESSFUL!\n";
+                        formattedText += "=" + "=".repeat(50) + "\n\n";
+                        
+                        let allText = "";
+                        
+                        // Collect all text first
+                        Object.entries(data).forEach(([frame, text]) => {
+                            allText += text + " ";
+                        });
+                        
+                        // Display combined text
+                        formattedText += "📋 COMBINED TEXT:\n";
+                        formattedText += "-".repeat(30) + "\n";
+                        formattedText += allText.trim() + "\n\n";
+                        
+                        // Display detailed breakdown
+                        formattedText += "🔍 DETAILED BREAKDOWN BY FRAME:\n";
+                        formattedText += "-".repeat(30) + "\n";
+                        Object.entries(data).forEach(([frame, text]) => {
+                            formattedText += `📸 ${frame}:\n${text}\n\n`;
+                        });
+                        
+                        formattedText += "=" + "=".repeat(50) + "\n";
+                        formattedText += `✅ Successfully extracted text from ${Object.keys(data).length} frames!`;
+                        
+                        result.textContent = formattedText;
+                        result.className = "success-state";
+                    }
+                }
+            } catch (error) {
+                result.textContent = "❌ Network error: " + error.message;
+                result.className = "error-state";
+            } finally {
+                // Stop countdown timer
+                stopCountdown();
+                
+                // Reset button state with smooth animations
+                setTimeout(() => {
+                    button.disabled = false;
+                    buttonText.textContent = "Extract Text";
+                    loading.classList.remove('show');
+                    progress.classList.remove('show');
+                }, 500);
+            }
+        }
+
+        // Add Enter key support
+        document.getElementById('url').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                extractText();
+            }
+        });
+
+        // Function to format time in minutes and seconds
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            if (mins > 0) {
+                return `${mins}m ${secs}s`;
+            }
+            return `${secs}s`;
+        }
+
+        // Function to update processing time estimates
+        async function updateProcessingEstimates(url) {
+            const progress = document.getElementById('progress');
+            
+            try {
+                const response = await fetch('/get-video-info', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ url: url })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    console.log("Could not get video info:", data.error);
+                    return null;
+                }
+                
+                const times = data.processing_times;
+                
+                // Update the progress estimates
+                const progressSteps = progress.querySelectorAll('.progress-step span');
+                if (progressSteps.length >= 3) {
+                    progressSteps[0].textContent = `Video Download: ~${formatTime(times.download)}`;
+                    progressSteps[1].textContent = `Frame Extraction: ~${formatTime(times.frames)} (${times.estimated_frames} frames)`;
+                    progressSteps[2].textContent = `OCR Processing: ~${formatTime(times.ocr)}`;
+                }
+                
+                // Update total time
+                const totalTimeElement = progress.querySelector('.total-time');
+                if (totalTimeElement) {
+                    totalTimeElement.innerHTML = `
+                        <i class="fas fa-stopwatch"></i> 
+                        Total Expected Time: ${formatTime(times.total)} 
+                        <small>(Video Duration: ${data.duration_formatted})</small>
+                    `;
+                }
+                
+                return data; // Return the data so it can be used by the countdown
+                
+            } catch (error) {
+                console.log("Error fetching video info:", error);
+                return null;
+            }
+        }
+
+        // Countdown timer variables
+        let countdownInterval = null;
+        let estimatedTotalTime = 0;
+
+        // Function to start countdown timer
+        function startCountdown(totalSeconds) {
+            const countdownElement = document.getElementById('countdown-text');
+            estimatedTotalTime = totalSeconds;
+            let remainingTime = totalSeconds;
+
+            // Clear any existing countdown
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+            }
+
+            countdownInterval = setInterval(() => {
+                if (remainingTime <= 0) {
+                    countdownElement.textContent = "Almost done...";
+                    clearInterval(countdownInterval);
+                    return;
+                }
+
+                const minutes = Math.floor(remainingTime / 60);
+                const seconds = remainingTime % 60;
+                
+                if (minutes > 0) {
+                    countdownElement.textContent = `Time remaining: ${minutes}m ${seconds}s`;
+                } else {
+                    countdownElement.textContent = `Time remaining: ${seconds}s`;
+                }
+
+                remainingTime--;
+            }, 1000);
+        }
+
+        // Function to stop countdown timer
+        function stopCountdown() {
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+        }
+
+        // Add input validation and formatting with dynamic estimates
+        document.getElementById('url').addEventListener('input', async function(e) {
+            const url = e.target.value.trim();
+            const result = document.getElementById('result');
+            
+            if (url && !url.includes('youtube.com') && !url.includes('youtu.be')) {
+                result.textContent = "⚠️ Please enter a valid YouTube URL";
+                result.className = "error-state";
+            } else if (!url) {
+                result.textContent = "Ready to extract text from your YouTube video...";
+                result.className = "empty-state";
+            } else if (url.includes('youtube.com') || url.includes('youtu.be')) {
+                result.textContent = "🔍 Analyzing video to calculate processing time...";
+                result.className = "";
+                
+                // Debounce the API call
+                clearTimeout(this.debounceTimer);
+                this.debounceTimer = setTimeout(() => {
+                    updateProcessingEstimates(url);
+                }, 1000);
+            }
+        });
+    </script>
+</body>
+</html>
